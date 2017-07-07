@@ -51,6 +51,27 @@ UKF::UKF() {
 
   Hint: one or more values initialized above might be wildly off...
   */
+
+  // set falg to initialise to false
+  is_initialized_ = false;
+
+  // initialise the time
+  time_us_ = 0.0;
+
+  // state dimension
+  n_x_ = 5;
+
+  // Augmented state dimension
+  n_aug_ = 7;
+
+  // Sigma point spreading parameter
+  lambda_ = 3 - n_x_;
+
+  // predicted sigma points matrix
+  Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
+
+  //create vector for weights
+  weights_ = VectorXd(2 * n_aug_ + 1);
 }
 
 UKF::~UKF() {}
@@ -59,13 +80,52 @@ UKF::~UKF() {}
  * @param {MeasurementPackage} meas_package The latest measurement data of
  * either radar or laser.
  */
-void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
-  /**
-  TODO:
+void UKF::ProcessMeasurement(MeasurementPackage meas_package)
+{
+  // if not initialised
+  if (!is_initialized_)
+  {
+    // first measurement
+    x_ << 1, 1, 1, 1, 0.1;
 
-  Complete this function! Make sure you switch between lidar and radar
-  measurements.
-  */
+    // init covariance matrix
+    P_ << 0.15,    0, 0, 0, 0,
+            0, 0.15, 0, 0, 0,
+            0,    0, 1, 0, 0,
+            0,    0, 0, 1, 0,
+            0,    0, 0, 0, 1;
+
+    if (meas_package.sensor_type_ == MeasurementPackage::LASER && use_laser_) {
+
+      x_(0) = meas_package.raw_measurements_(0);
+      x_(1) = meas_package.raw_measurements_(1);
+
+    }
+    else if (meas_package.sensor_type_ == MeasurementPackage::RADAR && use_radar_) {
+      /**
+      Convert radar from polar to cartesian coordinates and initialize state.
+      */
+      float rho = meas_package.raw_measurements_(0);
+      float phi = meas_package.raw_measurements_(1);
+      float rho_dot = meas_package.raw_measurements_(2);
+      x_(0) = rho * cos(phi);
+      x_(1) = rho * sin(phi);
+    }
+
+    // update if only its  a valid measurement
+    if (meas_package.sensor_type_ == MeasurementPackage::RADAR ||
+        meas_package.sensor_type_ == MeasurementPackage::LASER) {
+
+      // init timestamp
+      time_us_ = meas_package.timestamp_;
+
+
+      // done initializing, no need to predict or update
+      is_initialized_ = true;
+    }
+
+    return;
+  }
 }
 
 /**
